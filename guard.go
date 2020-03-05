@@ -8,16 +8,18 @@ import (
     "strconv"
     "os"
     "sync"
+    "syscall"
+    "net/http"
 )
 
 
 type Status struct {
-	List     map[string]string
+	List     map[string]map[int]bool
 	ListLock sync.RWMutex
 }
 
 var S = &Status{
-	List: make(map[string]string),
+	List: make(map[string]map[int]bool),
 }
 
 
@@ -46,16 +48,19 @@ func pwd() string{
 }
 
 
+
 func startup(file string) {
 
       S.ListLock.Lock()
       filepath := ("scripts/"+file)
       cmd := exec.Command(filepath)
+      //cmd.Start()
+      cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
       cmd.Start()
-      pidint := cmd.Process.Pid
-      pid := strconv.Itoa(pidint)
-      fmt.Printf("process:%-15s    pid:%-5s\n",file,pid)
-      S.List[file] = pid
+      //pidint := cmd.Process.Pid
+      //pid := strconv.Itoa(pidint)
+      fmt.Printf("Process:%-15s    Pid:%-5d\n",file,cmd.Process.Pid)
+      S.List[file] = map[int]bool{cmd.Process.Pid: true}
       S.ListLock.Unlock()
       cmd.Wait()
 }
@@ -73,33 +78,70 @@ func process() {
 }
 
 
+func killpid(file string) {
+    S.ListLock.Lock()
+    defer S.ListLock.Unlock()
+    a := S.List[file]
+    for pid,_ := range a{
+    //pid,_ := strconv.Atoi(k)
+    err := syscall.Kill(-pid, syscall.SIGKILL)
+    if err != nil {
+        fmt.Println("kill process team is failed, err:", err)
+    }
+    fmt.Println("kill process team is ok")
+    S.List[file][pid] = false
+    }
+
+}
+
 func Check(){
 
-    for {
-            time.Sleep(time.Second * 1)
+	for {
+		time.Sleep(time.Second * 1)
+		S.ListLock.Lock()
+		for file := range S.List {
+			for pid := range S.List[file] {
+				if S.List[file][pid] == true {
+                                        pidstr := strconv.Itoa(pid)
+					_, err := os.Stat("/proc/"+pidstr)
+						if err == nil {
+							continue
+						}
+					if os.IsNotExist(err) {
+						fmt.Println(file + " is down ! restarting...")
+							go startup(file)
+							fmt.Println(file + " is recover successfully!")
+					}
+				}
+				continue
 
-            for file := range S.List {
-                S.ListLock.Lock()
-                pid := S.List[file]
-                _, err := os.Stat("/proc/"+pid)
-                    if err == nil {
-                        S.ListLock.Unlock()
-                        continue
-                    }
-                    if os.IsNotExist(err) {
-                        S.ListLock.Unlock()
-                        fmt.Println(file + " is down ! restarting...")
-                        go startup(file)
-                        fmt.Println(file + " is recover successfully!")
-                    }
-         }
-      }
+			}
+		}
+		S.ListLock.Unlock()
+	}
 }
 
 
+func downprocess(w http.ResponseWriter, r *http.Request) {
+    //r.ParseForm()
+    file := r.FormValue("file")
+    killpid(file)
+    fmt.Fprintln(w, file + " has been shutdown !")
+}
+
+
+func Getinfo(w http.ResponseWriter, r *http.Request){ 
+    fmt.Fprintln(w ,S.List)
+    
+}
+
 func main() {
-       
     process()
-    Check()
+    time.Sleep(time.Second * 1)
+    go Check()
+    http.HandleFunc("/down", downprocess)
+    http.HandleFunc("/getinfo", Getinfo)
+    err := http.ListenAndServe("0.0.0.0:8010",nil)
+    fmt.Println(err)
 
 }
