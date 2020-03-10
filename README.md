@@ -29,4 +29,4 @@ A simple daemon process
 
 
 
-~~7.进程启动检查
+~~7.进程启动检查~~
