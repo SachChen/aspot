@@ -21,7 +21,12 @@ A simple daemon process
 
 
 
-
-
 5.计划任务
 
+
+
+6.日志拉取
+
+
+
+7.进程启动检查
