@@ -19,3 +19,9 @@ A simple daemon process
 
 4.添加日志配置，日志大小，保存个数
 
+
+
+
+
+5.计划任务
+
