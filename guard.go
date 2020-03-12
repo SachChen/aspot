@@ -11,24 +11,9 @@ import (
     "syscall"
     "net/http"
     "io/ioutil"
-    //"log"
+    "log"
+    "encoding/json"
 )
-
-
-
-type Info struct {
-
-    Status     bool
-    Pid        int
-    Logsize    int
-    Logfiles   int
-    Cron       time
-    alart      bool
-
-}
-
-
-
 
 type Status struct {
 	List     map[string]bool
@@ -62,8 +47,8 @@ func guard() ([]string) {
 }
     output := strings.Split(string(out), "\n")
     return output
-
 }
+
 
 func pwd() string{
     pwd,err := exec.Command("pwd").Output()
@@ -91,8 +76,8 @@ func startup(file string) {
 
       S.ListLock.Lock()
       P.ListLock.Lock()
-      filepatsh := ("autolaunch/"+file)
-      cmd := exec.Command(filepatsh)
+      filepath := ("autolaunch/"+file)
+      cmd := exec.Command(filepath)
       cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
       cmd.Start()
       //pidint := cmd.Process.Pid
@@ -107,17 +92,36 @@ func startup(file string) {
 }
 
 
+
+func alart(file string) {
+    cmd := exec.Command("alart/alart.sh",file)
+    cmd.Start()
+    cmd.Wait()
+    fmt.Println("send alart infomation successfully ! ")
+}
+
+
+
 func addpro(file string)  {
 
       //添加重试次数以及失败时间,达到重启次数上限后放弃重启操作,并执行相应动作
       i := 0
       for {
           i++
-          if i < 3 {
-              filepatsh := ("scripts/"+file)
-              cmd := exec.Command(filepatsh)
+          if i < 4 {
+              filepath := ("scripts/"+file)
+              cmd := exec.Command(filepath)
               cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-              cmd.Start()
+              stdout, err := os.OpenFile("logs/"+file+".log", os.O_CREATE|os.O_WRONLY, 0600)
+              if err != nil {
+                  log.Fatalln(err)
+              }
+              defer stdout.Close()
+              cmd.Stdout = stdout
+              if err := cmd.Start(); err != nil {
+                  log.Println(err)
+              }
+              //cmd.Start()
               fmt.Printf("Process:%-15s    Pid:%-5d\n",file,cmd.Process.Pid)
               pid := cmd.Process.Pid
               time.Sleep(time.Second * 5)
@@ -129,10 +133,10 @@ func addpro(file string)  {
               f,_ := os.Open("/proc/"+pidstr+"/cmdline")       //通过查看proc的cmdline判断是否产生僵尸进程，如果cmdline为空则是僵尸进，否则不是。
               i,_ := ioutil.ReadAll(f)
               m := string(i)
+              //fmt.Println(m)
               
               if m != "" {
               // if m == nil
-                  fmt.Println(m)
                   fmt.Println("launch process of "+file+" successfully !")
                   S.List[file] = true
                   P.List[file] = cmd.Process.Pid
@@ -155,14 +159,14 @@ func addpro(file string)  {
           } else {
               S.ListLock.Lock()
               P.ListLock.Lock()
-              fmt.Println("launch process of "+file+" faild "+strconv.Itoa(i)+" times, droped !")
+              fmt.Println("launch process of "+file+" faild "+strconv.Itoa(i-1)+" times, droped !")
               S.List[file] = false
               S.ListLock.Unlock()
               P.ListLock.Unlock()
               break
           }
           
-      }      
+      }   
 
 }
 
@@ -174,7 +178,7 @@ func process() {
                 if files[i] == "" {
                         continue
                 }
-                go startup(files[i])
+                go addpro(files[i])
         }
 }
 
@@ -182,27 +186,34 @@ func process() {
 func killpid(file string) {
     S.ListLock.Lock()
     P.ListLock.Lock()
-    defer S.ListLock.Unlock()
-    defer P.ListLock.Unlock()
+    //defer S.ListLock.Unlock()
+    //defer P.ListLock.Unlock()
     pid := P.List[file]
-    err := syscall.Kill(-pid, syscall.SIGKILL)
-    if err != nil {
-        fmt.Println("kill process of "+file+" is failed, err:", err)
-    } 
-    for {
-        time.Sleep(time.Second * 1)
-        pidstr := strconv.Itoa(pid)
-        _, err := os.Stat("/proc/"+pidstr)
-        if err == nil {
-            continue
-        }
-        if os.IsNotExist(err) {
-            fmt.Println("kill process of "+file+" successfully !")
-            break
+    if S.List[file] == false {
+        S.ListLock.Unlock()
+        P.ListLock.Unlock()
+        return 
+    }else {
+        err := syscall.Kill(-pid, syscall.SIGKILL)
+        if err != nil {
+            fmt.Println("kill process of "+file+" is failed, err:", err)
         } 
-
+        for {
+            time.Sleep(time.Second * 1)
+            pidstr := strconv.Itoa(pid)
+            _, err := os.Stat("/proc/"+pidstr)
+            if err == nil {
+                continue
+            }
+            if os.IsNotExist(err) {
+                fmt.Println("kill process of "+file+" successfully !")
+                break
+            } 
+        }
+        S.List[file] = false
+        S.ListLock.Unlock()
+        P.ListLock.Unlock()
     }
-    S.List[file] = false
 
 }
 
@@ -221,9 +232,11 @@ func Check(){
 				continue
 			    }
 			    if os.IsNotExist(err) {
+                                alart(file)
+                                S.List[file] = false
 				fmt.Println(file + " is down ! restarting...")
 				go addpro(file)
-				fmt.Println(file + " is recover successfully!")
+				//fmt.Println(file + " is recover successfully!")
 			    }
 			}
 				continue
@@ -244,7 +257,26 @@ func downprocess(w http.ResponseWriter, r *http.Request) {
 func launchprocess(w http.ResponseWriter, r *http.Request) {
     file := r.FormValue("file")
     go addpro(file)
-    fmt.Fprintln(w, file + " has been launched !")
+    t := 1
+    for {
+    t++
+    S.ListLock.Lock()    
+    if S.List[file] == true{
+        S.ListLock.Unlock()
+        fmt.Fprintln(w, file + " has been launched !")
+        break
+    }else{
+        if t > 5*1000/100*3 {
+            S.ListLock.Unlock()
+            fmt.Fprintln(w, file + " launched failed !")
+            break
+        }else{
+        S.ListLock.Unlock()
+        time.Sleep(time.Millisecond * 100)
+        continue
+        }     
+    }
+    }
     
 
 }
@@ -257,7 +289,9 @@ func getstatus(w http.ResponseWriter, r *http.Request){
 
 
 func getallstatus(w http.ResponseWriter, r *http.Request){
-    fmt.Fprintln(w ,S.List)
+    mjson,_ :=json.Marshal(S.List)
+    mString :=string(mjson)
+    fmt.Fprintln(w ,mString)
 
 }
 
@@ -265,14 +299,26 @@ func getallstatus(w http.ResponseWriter, r *http.Request){
 
 func allshutdown(w http.ResponseWriter, r *http.Request){
     for file := range S.List{
+        if S.List[file] == true {
         killpid(file)
         fmt.Fprintln(w, file + " has been shutdown !")
-
-    }
+        }else {
+        continue
+        }
+}
 }
 
 
 func main() {
+
+    for _,i := range []string{"scripts","alart","autolaunch","logs","services"} {
+        exists,_ := PathExists(i)
+        if exists == false{
+            os.Mkdir(i, os.ModePerm)
+        }else{
+            continue
+        }        
+    }   
     process()
     time.Sleep(time.Second * 1)
     go Check()
