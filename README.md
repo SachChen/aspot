@@ -5,7 +5,7 @@ A simple daemon process
 
 需要添加的功能有
 
-1.故障报警
+~~1.故障报警~~
 
 
 
