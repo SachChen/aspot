@@ -12,8 +12,23 @@ import (
     "net/http"
     "io/ioutil"
     "log"
+    "bufio"
     "encoding/json"
+    "io"
+    "path/filepath"
+    "ulog"
 )
+
+
+func pwd() (string) {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return dir
+}
+
+
 
 type Status struct {
 	List     map[string]bool
@@ -40,23 +55,15 @@ func ls(path string) ([]byte,error) {
 }
 
 
-func guard() ([]string) {
-    out,err := ls("autolaunch")
+func guard(path string) ([]string) {
+    dir := pwd()
+    //fmt.Println(dir)
+    out,err := ls(dir+"/"+path)
     if err != nil {
         panic(err)
 }
     output := strings.Split(string(out), "\n")
     return output
-}
-
-
-func pwd() string{
-    pwd,err := exec.Command("pwd").Output()
-    if err != nil {
-	panic(err)
-    }
-    pout := string(pwd)
-    return  pout
 }
 
 
@@ -102,22 +109,22 @@ func alart(file string) {
 
 
 
-func addpro(file string)  {
+func addpro(file,path string)  {
 
       //添加重试次数以及失败时间,达到重启次数上限后放弃重启操作,并执行相应动作
+      dir := pwd()
       i := 0
       for {
           i++
           if i < 4 {
-              filepath := ("scripts/"+file)
+              filepath := (dir+"/"+path+"/"+file)
+              logpath := (dir+"/logs/"+file+".log")
               cmd := exec.Command(filepath)
               cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-              stdout, err := os.OpenFile("logs/"+file+".log", os.O_CREATE|os.O_WRONLY, 0600)
+              stdout, err := cmd.StdoutPipe()  
               if err != nil {
-                  log.Fatalln(err)
-              }
-              defer stdout.Close()
-              cmd.Stdout = stdout
+		fmt.Println(err)
+	      }
               if err := cmd.Start(); err != nil {
                   log.Println(err)
               }
@@ -134,7 +141,6 @@ func addpro(file string)  {
               i,_ := ioutil.ReadAll(f)
               m := string(i)
               //fmt.Println(m)
-              
               if m != "" {
               // if m == nil
                   fmt.Println("launch process of "+file+" successfully !")
@@ -143,6 +149,22 @@ func addpro(file string)  {
                   S.ListLock.Unlock()
                   P.ListLock.Unlock()
                   //break
+                  reader := bufio.NewReader(stdout)
+                  var cmstdout *ulog.File
+                  cmstdout = ulog.NewFile("",logpath,ulog.Gzip,50*ulog.MB,5)
+                  defer cmstdout.Close()
+                  for {
+                      line, err2 := reader.ReadString('\n')
+                      if err2 != nil || io.EOF == err2 {
+                          break
+                      }
+                      _, err := cmstdout.Write([]byte(line))
+                      if err != nil {
+			log.Fatalf("err:%s\n", err)
+		      }
+                      
+                  }
+                  //cmstdout.Close()
                   cmd.Wait()
                   break
               }
@@ -155,8 +177,8 @@ func addpro(file string)  {
                   S.ListLock.Unlock()
                   P.ListLock.Unlock()
                   continue
-              }
-          } else {
+              } 
+          }else {
               S.ListLock.Lock()
               P.ListLock.Lock()
               fmt.Println("launch process of "+file+" faild "+strconv.Itoa(i-1)+" times, droped !")
@@ -164,23 +186,36 @@ func addpro(file string)  {
               S.ListLock.Unlock()
               P.ListLock.Unlock()
               break
-          }
-          
-      }   
-
+              }
+         }   
 }
 
 
 func process() {
 
-    files := guard()
+    files := guard("autolaunch")
         for i,_ := range files{
                 if files[i] == "" {
                         continue
                 }
-                go addpro(files[i])
+                go addpro(files[i],"autolaunch")
         }
 }
+
+
+func getpro() {
+    files := guard("scripts")
+        for i,_ := range files{
+            if files[i] == "" {
+                continue
+            }
+            S.ListLock.Lock()
+            S.List[files[i]] = false
+            S.ListLock.Unlock()
+        }
+
+}
+
 
 
 func killpid(file string) {
@@ -235,7 +270,7 @@ func Check(){
                                 alart(file)
                                 S.List[file] = false
 				fmt.Println(file + " is down ! restarting...")
-				go addpro(file)
+				go addpro(file,"scripts")
 				//fmt.Println(file + " is recover successfully!")
 			    }
 			}
@@ -256,7 +291,7 @@ func downprocess(w http.ResponseWriter, r *http.Request) {
 
 func launchprocess(w http.ResponseWriter, r *http.Request) {
     file := r.FormValue("file")
-    go addpro(file)
+    go addpro(file,"scripts")
     t := 1
     for {
     t++
@@ -310,8 +345,8 @@ func allshutdown(w http.ResponseWriter, r *http.Request){
 
 
 func main() {
-
-    for _,i := range []string{"scripts","alart","autolaunch","logs","services"} {
+    dir := pwd()
+    for _,i := range []string{dir+"/scripts",dir+"/alart",dir+"/autolaunch",dir+"/logs",dir+"/services"} {
         exists,_ := PathExists(i)
         if exists == false{
             os.Mkdir(i, os.ModePerm)
@@ -319,6 +354,7 @@ func main() {
             continue
         }        
     }   
+    getpro() 
     process()
     time.Sleep(time.Second * 1)
     go Check()
