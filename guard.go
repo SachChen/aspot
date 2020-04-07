@@ -45,11 +45,13 @@ func pwd() string {
 	return dir
 }
 
+// Status 进程状态
 type Status struct {
 	List     map[string]*pinfo
 	ListLock sync.RWMutex
 }
 
+// S 进程状态化
 var S = &Status{
 	List: make(map[string]*pinfo),
 }
@@ -69,6 +71,7 @@ func guard(path string) []string {
 	return output
 }
 
+//PathExists 判断文件是否存在
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -95,11 +98,15 @@ func startup(file string) {
 	cmd.Wait()
 }
 
-func alart(file string) {
-	cmd := exec.Command("bin/alart/alart.sh", file)
-	cmd.Start()
+func alart(status, file string) {
+	cmd := exec.Command("bin/alart/alart.sh", status, file)
+	//cmd.Start()
+	if err := cmd.Start(); err != nil {
+		log.Println(err)
+	} else {
+		log.Println("send alart infomation successfully ! ")
+	}
 	cmd.Wait()
-	fmt.Println("send alart infomation successfully ! ")
 }
 
 func httpcheck() {
@@ -113,6 +120,17 @@ func httpcheck() {
 			break
 		}
 	}
+}
+
+//ProExists 判断map中是否存在指定进程
+func ProExists(process string) bool {
+	S.ListLock.Lock()
+	if _, ok := S.List[process]; ok {
+		S.ListLock.Unlock()
+		return true
+	}
+	S.ListLock.Unlock()
+	return false
 }
 
 func addpro(file, path string) {
@@ -131,13 +149,13 @@ func addpro(file, path string) {
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 			if err := cmd.Start(); err != nil {
 				log.Println(err)
 			}
 
-			fmt.Printf("Process:%-15s    Pid:%-5d\n", file, cmd.Process.Pid)
+			//fmt.Printf("Process:%-15s    Pid:%-5d\n", file, cmd.Process.Pid)
 			pid := cmd.Process.Pid
 			time.Sleep(time.Second * 5)
 			pidstr := strconv.Itoa(pid)
@@ -147,8 +165,7 @@ func addpro(file, path string) {
 			i, _ := ioutil.ReadAll(f)
 			m := string(i)
 			if m != "" {
-				fmt.Println("launch process of " + file + " successfully !")
-
+				log.Println("launch process of " + file + " successfully !")
 				//S.List[file] = &pinfo{cmd.Process.Pid,true,50,5,true,""}
 				S.List[file].Pid = cmd.Process.Pid
 				S.List[file].Status = true
@@ -193,7 +210,7 @@ func addpro(file, path string) {
 				break
 			}
 			if m == "" {
-				fmt.Println("launch process of " + file + " filed , retrying . . .")
+				log.Println("launch process of " + file + " filed , retrying . . .")
 				cmd.Wait()
 
 				//S.List[file] = &pinfo{cmd.Process.Pid,false,50,5,true,""}
@@ -205,7 +222,7 @@ func addpro(file, path string) {
 			}
 		} else {
 			//S.ListLock.Lock()
-			fmt.Println("launch process of " + file + " faild " + strconv.Itoa(i-1) + " times, droped !")
+			log.Println("launch process of " + file + " faild " + strconv.Itoa(i-1) + " times, droped !")
 			//S.List[file].Status = false
 			//S.ListLock.Unlock()
 			break
@@ -216,7 +233,7 @@ func addpro(file, path string) {
 func process() {
 
 	files := guard("bin/autolaunch")
-	for i, _ := range files {
+	for i := range files {
 		if files[i] == "" {
 			continue
 		}
@@ -226,49 +243,61 @@ func process() {
 
 //获取所有脚本的信息，初始化map
 func getpro() {
-	files := guard("bin/scripts")
-	for i, _ := range files {
-		if files[i] == "" {
+	scripts := guard("bin/scripts")
+	for i := range scripts {
+		if scripts[i] == "" {
 			continue
 		}
 		S.ListLock.Lock()
-		S.List[files[i]] = &pinfo{1, false, 50, 5, true, "", "", "", "", ""}
+		S.List[scripts[i]] = &pinfo{-1, false, 50, 5, true, "", "", "", "", ""}
+		S.ListLock.Unlock()
+	}
+	autostart := guard("bin/autolaunch")
+	for t := range autostart {
+		if autostart[t] == "" {
+			continue
+		}
+		S.ListLock.Lock()
+		S.List[autostart[t]] = &pinfo{-1, false, 50, 5, true, "", "", "", "", ""}
 		S.ListLock.Unlock()
 
 	}
 }
 
 func killpid(file string) {
+
 	S.ListLock.Lock()
 
 	pid := S.List[file].Pid
 	if S.List[file].Status == false {
 		S.ListLock.Unlock()
 		return
-	} else {
-		err := syscall.Kill(-pid, syscall.SIGKILL)
-		if err != nil {
-			fmt.Println("kill process of "+file+" is failed, err:", err)
-		}
-		for {
-			time.Sleep(time.Second * 1)
-			pidstr := strconv.Itoa(pid)
-			_, err := os.Stat("/proc/" + pidstr)
-			if err == nil {
-				continue
-			}
-			if os.IsNotExist(err) {
-				fmt.Println("kill process of " + file + " successfully !")
-				break
-			}
-		}
-		S.List[file].Status = false
-		S.ListLock.Unlock()
 	}
+	err := syscall.Kill(-pid, syscall.SIGINT)
+	//err := syscall.Kill(pid, syscall.SIGCHLD)
+	if err != nil {
+		log.Println("kill process of "+file+" is failed, err:", err)
+	}
+	for {
+		time.Sleep(time.Second * 1)
+		pidstr := strconv.Itoa(pid)
+		_, err := os.Stat("/proc/" + pidstr)
+		if err == nil {
+			continue
+		}
+		if os.IsNotExist(err) {
+			log.Println("kill process of " + file + " successfully !")
+			break
+		}
+	}
+	S.List[file].Status = false
+	S.ListLock.Unlock()
 
 }
 
+// Check 健康检查
 func Check() {
+	dir := pwd()
 
 	for {
 		time.Sleep(time.Second * 1)
@@ -282,10 +311,21 @@ func Check() {
 					continue
 				}
 				if os.IsNotExist(err) {
-					alart(file)
+					if S.List[file].Alart == true {
+						alart("down", file)
+					}
 					S.List[file].Status = false
-					fmt.Println(file + " is down ! restarting...")
-					go addpro(file, "scripts")
+					log.Println(file + " is down! restarting...")
+					sc, _ := PathExists(dir + "/bin/scripts/" + file)
+					au, _ := PathExists(dir + "/bin/autolaunch/" + file)
+					if sc == true {
+						go addpro(file, "bin/scripts")
+					} else if au == true {
+						go addpro(file, "bin/autolaunch")
+					} else {
+						log.Println("No such file, recovery faild !")
+					}
+
 				}
 			}
 			continue
@@ -297,30 +337,50 @@ func Check() {
 func downprocess(w http.ResponseWriter, r *http.Request) {
 	//r.ParseForm()
 	file := r.FormValue("file")
-	killpid(file)
-	fmt.Fprintln(w, file+" has been shutdown !")
+	exist := ProExists(file)
+	if exist == false {
+		fmt.Fprintln(w, " No such process !")
+	} else {
+
+		killpid(file)
+		fmt.Fprintln(w, file+" shutdown successfully !")
+	}
+
 }
 
 func launchprocess(w http.ResponseWriter, r *http.Request) {
+	dir := pwd()
 	file := r.FormValue("file")
-	go addpro(file, "scripts")
-	t := 1
-	for {
-		t++
+	exist, _ := PathExists(dir + "/bin/scripts/" + file)
+	if exist == false {
+		fmt.Fprintln(w, " No such file, please add it !")
+	} else {
 		S.ListLock.Lock()
 		if S.List[file].Status == true {
 			S.ListLock.Unlock()
-			fmt.Fprintln(w, file+" has been launched !")
-			break
+			fmt.Fprintln(w, file+" process exist! please stop it first, or restart it !")
 		} else {
-			if t > 5*1000/100*3 {
-				S.ListLock.Unlock()
-				fmt.Fprintln(w, file+" launched failed !")
-				break
-			} else {
-				S.ListLock.Unlock()
-				time.Sleep(time.Millisecond * 100)
-				continue
+			S.ListLock.Unlock()
+			go addpro(file, "bin/scripts")
+			t := 1
+			for {
+				S.ListLock.Lock()
+				t++
+				if S.List[file].Status == true {
+					S.ListLock.Unlock()
+					fmt.Fprintln(w, file+" has been launched !")
+					break
+				} else {
+					if t > 5*1000/100*3 {
+						S.ListLock.Unlock()
+						fmt.Fprintln(w, file+" launched failed !")
+						break
+					} else {
+						S.ListLock.Unlock()
+						time.Sleep(time.Millisecond * 100)
+						continue
+					}
+				}
 			}
 		}
 	}
@@ -330,7 +390,7 @@ func mkconf() {
 	dir := pwd()
 	exist, _ := PathExists(dir + "/conf/config.sh")
 	if exist == true {
-		fmt.Println("config.sh already exist !")
+		log.Println("config.sh already exist !")
 	} else {
 		a := `#!/bin/bash
 
@@ -362,16 +422,42 @@ fi`
 	}
 }
 
-func getstatus(w http.ResponseWriter, r *http.Request) {
+func getinfo(w http.ResponseWriter, r *http.Request) {
 	file := r.FormValue("file")
-	fmt.Fprintln(w, S.List[file])
+	exist := ProExists(file)
+	if exist == false {
+		fmt.Fprintln(w, " No such process!")
+	} else {
+		S.ListLock.Lock()
+		mjson, _ := json.Marshal(S.List[file])
+		S.ListLock.Unlock()
+		mString := string(mjson)
+		fmt.Fprintln(w, mString)
+	}
 
 }
 
-func getallstatus(w http.ResponseWriter, r *http.Request) {
+func getallinfo(w http.ResponseWriter, r *http.Request) {
+	S.ListLock.Lock()
 	mjson, _ := json.Marshal(S.List)
+	S.ListLock.Unlock()
 	mString := string(mjson)
 	fmt.Fprintln(w, mString)
+
+}
+
+func getstatus(w http.ResponseWriter, r *http.Request) {
+	file := r.FormValue("file")
+	exist := ProExists(file)
+	if exist == false {
+		fmt.Fprintln(w, " No such process!")
+	} else {
+		S.ListLock.Lock()
+		mjson, _ := json.Marshal(S.List[file].Status)
+		S.ListLock.Unlock()
+		mString := string(mjson)
+		fmt.Fprintln(w, mString)
+	}
 
 }
 
@@ -383,6 +469,41 @@ func allshutdown(w http.ResponseWriter, r *http.Request) {
 		} else {
 			continue
 		}
+	}
+}
+
+func restart(w http.ResponseWriter, r *http.Request) {
+
+	file := r.FormValue("file")
+	exist := ProExists(file)
+	if exist == false {
+		fmt.Fprintln(w, " No such process!")
+	} else {
+
+		killpid(file)
+		go addpro(file, "bin/scripts")
+		t := 1
+		for {
+			t++
+			S.ListLock.Lock()
+			if S.List[file].Status == true {
+				fmt.Fprintln(w, file+" restared successfully !")
+				S.ListLock.Unlock()
+				break
+			} else {
+				if t > 5*1000/100*3 {
+					fmt.Fprintln(w, file+" restared failed !")
+					S.ListLock.Unlock()
+					break
+				} else {
+					S.ListLock.Unlock()
+					time.Sleep(time.Millisecond * 100)
+					continue
+				}
+			}
+
+		}
+
 	}
 }
 
@@ -399,6 +520,7 @@ func logmethod(w http.ResponseWriter, r *http.Request) {
 	S.List[file].Logserver = server
 	S.List[file].WashMode = wash
 	S.ListLock.Unlock()
+	fmt.Fprintln(w, method+":"+topic+":"+wash)
 }
 
 func setversion(w http.ResponseWriter, r *http.Request) {
@@ -408,26 +530,53 @@ func setversion(w http.ResponseWriter, r *http.Request) {
 	S.ListLock.Lock()
 	S.List[file].Version = version
 	S.ListLock.Unlock()
+	fmt.Fprintln(w, version)
 }
 
 func getversion(w http.ResponseWriter, r *http.Request) {
 	file := r.FormValue("file")
-
-	S.ListLock.Lock()
-	version := S.List[file].Version
-	S.ListLock.Unlock()
-	fmt.Fprintln(w, version)
+	exist := ProExists(file)
+	if exist == true {
+		S.ListLock.Lock()
+		version := S.List[file].Version
+		S.ListLock.Unlock()
+		fmt.Fprintln(w, version)
+	} else {
+		fmt.Fprintln(w, "No such process !")
+	}
 
 }
 
 func setlog(w http.ResponseWriter, r *http.Request) {
 	file := r.FormValue("file")
-	logsize, _ := strconv.Atoi(r.FormValue("size"))
-	logcount, _ := strconv.Atoi(r.FormValue("count"))
-	S.ListLock.Lock()
-	S.List[file].Logsize = logsize
-	S.List[file].Logfiles = logcount
-	S.ListLock.Unlock()
+	exist := ProExists(file)
+	if exist == true {
+		logsize, _ := strconv.Atoi(r.FormValue("size"))
+		logcount, _ := strconv.Atoi(r.FormValue("count"))
+		S.ListLock.Lock()
+		S.List[file].Logsize = logsize
+		S.List[file].Logfiles = logcount
+		S.ListLock.Unlock()
+		fmt.Fprintln(w, "Log set successfully !")
+	} else {
+		fmt.Fprintln(w, "No such process !")
+	}
+
+}
+
+func setalart(w http.ResponseWriter, r *http.Request) {
+	file := r.FormValue("file")
+	exist := ProExists(file)
+	if exist == true {
+		status := r.FormValue("status")
+		ss, _ := strconv.ParseBool(status)
+		S.ListLock.Lock()
+		S.List[file].Alart = ss
+		S.ListLock.Unlock()
+		fmt.Fprintln(w, "Alart set successfully !")
+	} else {
+		fmt.Fprintln(w, "No such process !")
+	}
 
 }
 
@@ -448,14 +597,17 @@ func main() {
 	go Check()
 	http.HandleFunc("/down", downprocess)
 	http.HandleFunc("/alldown", allshutdown)
-	http.HandleFunc("/status", getstatus)
-	http.HandleFunc("/allstatus", getallstatus)
+	http.HandleFunc("/info", getinfo)
+	http.HandleFunc("/allinfo", getallinfo)
 	http.HandleFunc("/launch", launchprocess)
 	http.HandleFunc("/logmethod", logmethod)
 	http.HandleFunc("/setversion", setversion)
 	http.HandleFunc("/getversion", getversion)
 	http.HandleFunc("/setlog", setlog)
+	http.HandleFunc("/restart", restart)
+	http.HandleFunc("/setalart", setalart)
+	http.HandleFunc("/status", getstatus)
 	err := http.ListenAndServe("0.0.0.0:8010", nil)
-	fmt.Println(err)
+	log.Println(err)
 
 }
