@@ -137,29 +137,29 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 
 
 
-功能|接口|参数|请求方式|返回类型
+功能|接口|传递参数|传参类型|请求方式|返回类型
 --|:--:|--:|--:|--:
-启动指定服务|/launch|file|GET|string
-关闭指定服务|/down|file|GET|string
-重启服务|/restart|file|GET|string
-关闭所有服务|/alldown|""|GET|string
-获取版本号|/getversion|file|GET|string
-设置版本号|/setversion|file|GET|string
-查看守护信息|/info|file|GET|json
-查看所有信息|/allinfo|""|GET|json
-获取状态|/status|file|GET|json
-查看计划任务|/croninfo|file|GET|json
-查看计划任务列表|/seecron|""|GET|json
-启动计划任务|/startcron|file|GET|string
-停止计划任务|/stopcron|file|GET|string
-设置计划任务|/setcron|file,rule|GET|string
-添加计划任务|/addcron|""|GET|string
-查看日志|/seelog|file,lines|GET|string
-下载日志文件|/downlog|file|GET|file
-查看系统资源|/getres/|""|GET|json
-获取系统信息|/getsys/|""|GET|json
-查看进程资源|/getproc/|file|GET|json
-刷新所有信息|/refresh/|""|GET|string
+启动指定服务|/launch|file|string|GET|string
+关闭指定服务|/down|file|string|GET|string
+重启服务|/restart|file|string|GET|string
+关闭所有服务|/alldown|""|""|GET|string
+获取版本号|/getversion|file|string|GET|string
+设置版本号|/setversion|file|string|GET|string
+查看守护信息|/info|file|string|GET|json
+查看所有信息|/allinfo|""|""|GET|json
+获取状态|/status|file|string|GET|json
+查看计划任务|/croninfo|file|string|GET|json
+查看计划任务列表|/seecron|""|""|GET|json
+启动计划任务|/startcron|file|string|GET|string
+停止计划任务|/stopcron|file|string|GET|string
+设置计划任务|/setcron|file,rule|string,string|GET|string
+添加计划任务|/addcron|""|""|GET|string
+查看日志|/seelog|file,lines|string,string|GET|string
+下载日志文件|/downlog|file|string|GET|file
+查看系统资源|/getres/|""|""|GET|json
+获取系统信息|/getsys/|""|""|GET|json
+查看进程资源|/getproc/|file|string|GET|json
+刷新所有信息|/refresh/|""|""|GET|string
 
 
 
