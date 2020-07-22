@@ -83,6 +83,42 @@ A super daemon process
 
 
 
+## 使用
+
+将编译好的guard可执行文件放在目标路径，执行后会在当前目录下生成必要目录，如下
+├── bin
+│   ├── alart
+│   ├── autolaunch
+│   ├── cron
+│   ├── daemon
+│   ├── services
+│   └── tool
+├── guard
+└── logs
+
+将相应的文件放到目录下即可，如启动守护脚本放在daemon下，脚本内容结构如下：
+#!/bin/bash
+
+#Logsize=50
+#Logfiles=5
+#Alart=alart.sh
+#Logapi=
+#Logserver=
+#Topic=
+#WashMode=
+#Version=
+#Dure=5
+#Retry=3
+
+ping www.baidu.com
+
+配置项将#去除，修改即可生效
+配置说明：
+
+Version字段可以使用$(do something)的形式直接获取版本信息，加上$会被程序认为是用bash处理并返回结果
+
+
+
 
 ## 警告：
 目前未添加安全验证，监听端口千万不要开放在公共网络！！！
