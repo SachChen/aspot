@@ -133,6 +133,10 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 
 #### 接口说明
 
+
+请求方式：GET
+
+
 功能|接口|参数
 --|:--:|--:
 启动指定服务|/launch|file
@@ -152,10 +156,10 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 添加计划任务|/addcron|""
 查看日志|/seelog|file,lines
 下载日志文件|/downlog|file
-查看系统资源|/getres/""
-获取系统信息|/getsys/""
-查看进程资源|/getproc/file
-刷新所有信息|/refresh/""
+查看系统资源|/getres/|""
+获取系统信息|/getsys/|""
+查看进程资源|/getproc/|file
+刷新所有信息|/refresh/|""
 
 
 
