@@ -1,5 +1,5 @@
 # GUARD
-A simple daemon process
+A  daemon process
 
 
 说明：Guard是一个基于linux的进程守护工具，目标是完成整个进程生命周期的管理，同时具备硬件资源和进程资源的整合能力，以及供应编排工具需要的接口。
