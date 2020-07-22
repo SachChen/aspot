@@ -134,32 +134,32 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 #### 接口说明
 
 
-请求方式：GET
 
 
-功能|接口|参数
---|:--:|--:
-启动指定服务|/launch|file
-关闭指定服务|/down|file
-重启服务|/restart|file
-关闭所有服务|/alldown|""
-获取版本号|/getversion|file
-设置版本号|/setversion|file
-查看守护信息|/info|file
-查看所有信息|/allinfo|""
-获取状态|/status|file
-查看计划任务|/croninfo|file
-查看计划任务列表|/seecron|""
-启动计划任务|/startcron|file
-停止计划任务|/stopcron|file
-设置计划任务|/setcron|file,rule
-添加计划任务|/addcron|""
-查看日志|/seelog|file,lines
-下载日志文件|/downlog|file
-查看系统资源|/getres/|""
-获取系统信息|/getsys/|""
-查看进程资源|/getproc/|file
-刷新所有信息|/refresh/|""
+
+功能|接口|参数|请求方式|返回类型
+--|:--:|--:|--:|--:
+启动指定服务|/launch|file|GET|string
+关闭指定服务|/down|file|GET|string
+重启服务|/restart|file|GET|string
+关闭所有服务|/alldown|""|GET|string
+获取版本号|/getversion|file|GET|string
+设置版本号|/setversion|file|GET|string
+查看守护信息|/info|file|GET|json
+查看所有信息|/allinfo|""|GET|json
+获取状态|/status|file|GET|json
+查看计划任务|/croninfo|file|GET|json
+查看计划任务列表|/seecron|""|GET|json
+启动计划任务|/startcron|file|GET|string
+停止计划任务|/stopcron|file|GET|string
+设置计划任务|/setcron|file,rule|GET|string
+添加计划任务|/addcron|""|GET|string
+查看日志|/seelog|file,lines|GET|string
+下载日志文件|/downlog|file|GET|file
+查看系统资源|/getres/|""|GET|json
+获取系统信息|/getsys/|""|GET|json
+查看进程资源|/getproc/|file|GET|json
+刷新所有信息|/refresh/|""|GET|string
 
 
 
