@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -28,7 +29,7 @@ const (
 	GB = 1024 * 1024 * 1024
 )
 
-const defaultMaxSize = 100 * MB
+const defaultMaxSize = math.MaxInt32 * MB
 
 type CompressType int
 
