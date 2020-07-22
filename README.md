@@ -2,7 +2,7 @@
 A super daemon process
 
 
-说明：Guard是一个基于linux平台的进程守护工具，目标是完成整个进程生命周期的管理，同时具备硬件资源和进程资源的整合能力，以及供应编排工具需要的接口。
+说明：Guard是一个基于linux平台的进程守护工具，目标是完成整个进程生命周期的管理，同时具备硬件资源和进程资源的整合能力，以及提供编排工具需要的接口。
 
 
 
@@ -10,7 +10,6 @@ A super daemon process
 
 
 1.进程守护
-
 
 
 2.服务开关及版本更新
@@ -72,7 +71,7 @@ A super daemon process
 3.定义清洗方式的接口目前只能写在代码里，计划对外部开放
 
 
-4.计划支持chroot的功能，完成运行环境的隔离以及降低环境部署的复杂度
+4.计划支持OCI标准，或调用支持OCI标准的库，完成容器化的操作
 
 
 5.增加脚本工具管理，可以执行脚本并查看结果
@@ -85,7 +84,10 @@ A super daemon process
 
 ## 使用
 
-将编译好的guard可执行文件放在目标路径，执行后会在当前目录下生成必要目录，如下
+#### 将编译好的guard可执行文件放在目标路径，执行后会在当前目录下生成必要目录，如下
+
+
+```
 ├── bin
 │   ├── alart
 │   ├── autolaunch
@@ -95,27 +97,69 @@ A super daemon process
 │   └── tool
 ├── guard
 └── logs
+```
 
-将相应的文件放到目录下即可，如启动守护脚本放在daemon下，脚本内容结构如下：
-#!/bin/bash
+#### 将相应的文件放到目录下即可，如启动守护脚本放在daemon下，脚本内容结构如下：
 
-#Logsize=50
-#Logfiles=5
-#Alart=alart.sh
-#Logapi=
-#Logserver=
-#Topic=
-#WashMode=
-#Version=
-#Dure=5
-#Retry=3
+```
+#!/bin/bash    (声明解释器)
+
+#Logsize=50    （设置日志文件大小）
+#Logfiles=5     （设置保存日志文件个数）
+#Alart=alart.sh   （设置报警脚本名）
+#Logapi=        （设置日志发送接口，留空不发送）
+#Logserver=     （日志服务器地址）
+#Topic=        （设置消息队列的Topic,Logapi留空则不生效）
+#WashMode=      （日志清洗策略）
+#Version=       （配置服务版本号）
+#Dure=5         （服务启动时间设置）
+#Retry=3        （服务启动重试次数）
 
 ping www.baidu.com
+```
 
 配置项将#去除，修改即可生效
-配置说明：
 
-Version字段可以使用$(do something)的形式直接获取版本信息，加上$会被程序认为是用bash处理并返回结果
+Version字段可以使用$(do something)的形式直接获取版本信息，加上$会被程序认为是用bash处理并返回结果，如Version=$(cat /guard/bin/services/aaa/version.txt)
+
+
+#### 告警信息
+告警脚本需要接受两个参数：状态和守护脚本名，分别以第一个参数和第二个参数传入告警脚本，脚本内部case判断后执行具体的操作，状态分为up、down、fail，分别表示启动成功、服务进程异常终止、启动失败。守护脚本名用于标记具体服务，告警脚本放入alart目录即可。
+
+#### 其它
+
+计划任务及脚本工具文档待完善
+
+
+#### 接口说明
+
+功能|接口|参数
+--|:--:|--:
+启动指定服务|/launch|file
+关闭指定服务|/down|file
+重启服务|/restart|file
+关闭所有服务|/alldown|""
+获取版本号|/getversion|file
+设置版本号|/setversion|file
+查看守护信息|/info|file
+查看所有信息|/allinfo|""
+获取状态|/status|file
+查看计划任务|/croninfo|file
+查看计划任务列表|/seecron|""
+启动计划任务|/startcron|file
+停止计划任务|/stopcron|file
+设置计划任务|/setcron|file,rule
+添加计划任务|/addcron|""
+查看日志|/seelog|file,lines
+下载日志文件|/downlog|file
+查看系统资源|/getres/""
+获取系统信息|/getsys/""
+查看进程资源|/getproc/file
+刷新所有信息|/refresh/""
+
+
+
+
 
 
 
