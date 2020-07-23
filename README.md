@@ -115,7 +115,7 @@ A super daemon process
 #Dure=5         （服务启动时间设置）
 #Retry=3        （服务启动重试次数）
 
-ping www.baidu.com
+ping www.baidu.com  (服务执行语句)
 ```
 
 配置项将#去除，修改即可生效
