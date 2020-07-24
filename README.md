@@ -159,10 +159,10 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 添加计划任务|/addcron|""|""|GET|string
 查看日志|/seelog|file,lines|string,string|GET|string
 下载日志文件|/downlog|file|string|GET|file
-查看系统资源|/getres/|""|""|GET|json
-获取系统信息|/getsys/|""|""|GET|json
-查看进程资源|/getproc/|file|string|GET|json
-刷新所有信息|/refresh/|""|""|GET|string
+查看系统资源|/getres|""|""|GET|json
+获取系统信息|/getsys|""|""|GET|json
+查看进程资源|/getproc|file|string|GET|json
+刷新所有信息|/refresh|""|""|GET|string
 
 
 
