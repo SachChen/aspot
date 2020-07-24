@@ -2,7 +2,7 @@ package config
 
 import (
 	"bufio"
-	"guard/src/proc"
+	"src/proc"
 	"io"
 	"os"
 	"os/exec"
