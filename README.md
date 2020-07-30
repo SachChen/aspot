@@ -171,8 +171,14 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 ### 推荐golang 版本 version ≥ 1.13
 
 1.克隆项目 git clone https://github.com/SachChen/aspot
+
+
 2.进入项目目录 cd aspot
+
+
 3.初始化 go mod init $(pwd)
+
+
 4.go build aspot.go
 
 
