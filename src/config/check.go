@@ -2,7 +2,7 @@ package config
 
 import (
 	"bufio"
-	"src/proc"
+	"aspot/src/proc"
 	"io"
 	"os"
 	"os/exec"
