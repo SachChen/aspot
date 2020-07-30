@@ -166,9 +166,9 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 
 
 
-## 编译说明
+### 编译说明:
 
-### 推荐golang 版本 version ≥ 1.13 ,如果出现某些依赖无法下载的情况，请使用golang代理科学操作！
+#### 推荐golang 版本 version ≥ 1.13 ,如果出现某些依赖无法下载的情况，请使用golang代理科学操作！
 
 1.克隆项目 git clone https://github.com/SachChen/aspot
 
