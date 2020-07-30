@@ -181,6 +181,7 @@ func addpro(file, path string) {
 			filepath := (dir + "/" + path + "/" + file)
 			logpath := (dir + "/logs/" + file + ".log")
 			cmd := exec.Command(filepath)
+			_, errs := os.Stat(dir + "/bin/services/" + file)
 			if errs == nil {
 				cmd.Dir = dir + "/bin/services/" + file
 			}
