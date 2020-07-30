@@ -181,7 +181,9 @@ func addpro(file, path string) {
 			filepath := (dir + "/" + path + "/" + file)
 			logpath := (dir + "/logs/" + file + ".log")
 			cmd := exec.Command(filepath)
-			cmd.Dir = dir + "/bin/services" + file
+			if errs == nil {
+				cmd.Dir = dir + "/bin/services/" + file
+			}
 			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {
