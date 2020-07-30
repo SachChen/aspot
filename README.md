@@ -176,7 +176,7 @@ Version字段可以使用$(do something)的形式直接获取版本信息，加�
 2.进入项目目录 cd aspot
 
 
-3.初始化 go mod init $(pwd)
+3.初始化 go mod init aspot
 
 
 4.go build aspot.go
