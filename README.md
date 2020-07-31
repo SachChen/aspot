@@ -87,7 +87,7 @@ A super daemon process， as a service pot!
 
 ## 使用
 
-#### 将编译好的guard可执行文件放在目标路径，执行后会在当前目录下生成必要目录，如下
+#### 将编译好的aspot可执行文件放在目标路径，执行后会在当前目录下生成必要目录，如下
 
 
 ```
@@ -98,7 +98,7 @@ A super daemon process， as a service pot!
 │   ├── daemon
 │   ├── services
 │   └── tool
-├── guard
+├── aspot
 └── logs
 ```
 
@@ -123,7 +123,7 @@ ping www.baidu.com  (服务执行语句)
 
 配置项将#去除，修改即可生效
 
-Version字段可以使用$(do something)的形式直接获取版本信息，加上$会被程序认为是用bash处理并返回结果，如Version=$(cat /guard/bin/services/aaa/version.txt)
+Version字段可以使用$(do something)的形式直接获取版本信息，加上$会被程序认为是用bash处理并返回结果，如Version=$(cat /aspot/bin/services/aaa/version.txt)
 
 
 #### 告警信息
