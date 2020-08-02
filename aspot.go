@@ -167,7 +167,7 @@ func CronExists(file string) bool {
 func addpro(file, path string) {
 	//添加重试次数以及失败时间,达到重启次数上限后放弃重启操作,并执行相应动作
 	//time.Sleep(time.Second * 2)
-	httpcheck() //等待guard的http接口启动，以便脚本内可以通过接口进行配置
+	//httpcheck() //等待guard的http接口启动，以便脚本内可以通过接口进行配置
 	dir := pwd()
 	config.Rconfig(file, dir)
 	proc.S.ListLock.RLock()
