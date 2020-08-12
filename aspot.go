@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"aspot/src/config"
-	"aspot/src/lapi"
-	"aspot/src/proc"
-	"aspot/src/resource"
-	"aspot/src/seelog"
-	"aspot/src/ulog"
-	"aspot/src/wapi"
+	"guard/src/config"
+	"guard/src/lapi"
+	"guard/src/proc"
+	"guard/src/resource"
+	"guard/src/seelog"
+	"guard/src/ulog"
+	"guard/src/wapi"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,14 +77,14 @@ func guard(path string) []string {
 
 func init() {
 	dir := pwd()
-	file := dir + "/logs/aspot.log"
+	file := dir + "/logs/guard.log"
 	pathcheck()
 	logFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
 	if err != nil {
 		panic(err)
 	}
 	log.SetOutput(logFile) // 将文件设置为log输出的文件
-	log.SetPrefix("[Aspot] ")
+	log.SetPrefix("[Guard] ")
 	//log.SetFlags(log.LstdFlags | log.Lshortfile | log.LUTC)
 	return
 }
@@ -119,7 +120,10 @@ func startup(file string) {
 */
 
 func alart(status, file string) {
-	cmd := exec.Command("bin/alart/alart.sh", status, file)
+	proc.S.ListLock.RLock()
+	warn := proc.S.List[file].Alart
+	proc.S.ListLock.RUnlock()
+	cmd := exec.Command("bin/alart/"+warn, status, file)
 	//cmd.Start()
 	if err := cmd.Start(); err != nil {
 		log.Println(err)
@@ -706,6 +710,7 @@ func getversion(w http.ResponseWriter, r *http.Request) {
 
 }
 
+/*
 func setlog(w http.ResponseWriter, r *http.Request) {
 	file := r.FormValue("file")
 	exist := ProExists(file)
@@ -722,7 +727,9 @@ func setlog(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+*/
 
+/*
 func setalart(w http.ResponseWriter, r *http.Request) {
 	file := r.FormValue("file")
 	exist := ProExists(file)
@@ -737,6 +744,7 @@ func setalart(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+*/
 
 func addcron(w http.ResponseWriter, r *http.Request) {
 	dir := pwd()
@@ -944,6 +952,59 @@ func GetProc(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func AllProc(w http.ResponseWriter, r *http.Request) {
+	apr := make([]map[string]string, 0)
+	var l sync.Mutex
+	var wg sync.WaitGroup
+	proc.S.ListLock.RLock()
+	//var a map[string]*proc.Pinfo
+	a := proc.S.List
+	proc.S.ListLock.RUnlock()
+	//fmt.Println(a)
+	for file := range a {
+		wg.Add(1)
+		go func(file string) {
+			proc.S.ListLock.RLock()
+			pid := strconv.Itoa(proc.S.List[file].CPid)
+			status := proc.S.List[file].Status
+			exist, _ := PathExists("/porc/" + pid)
+			proc.S.ListLock.RUnlock()
+			if exist == false {
+				proc.S.ListLock.Lock()
+				cpd := strconv.Itoa(proc.S.List[file].Pid)
+				proc.S.List[file].CPid = proc.GetPid(cpd)
+				pid = strconv.Itoa(proc.S.List[file].CPid)
+				proc.S.ListLock.Unlock()
+			}
+			var cuse, muse string
+			if status == false { //如果进程停止，则资源使用设置为"0"
+				cuse = "0"
+				muse = "0"
+			} else {
+				cuse = strconv.FormatFloat(proc.ProcUse(pid), 'f', -1, 64)
+				muse = proc.ProcMem(pid)
+			}
+			mpr := make(map[string]string)
+			mpr["pid"] = pid
+			mpr["cuse"] = cuse
+			mpr["muse"] = muse
+			mpr["app"] = file
+			l.Lock()
+			apr = append(apr, mpr)
+			l.Unlock()
+			wg.Done()
+		}(file)
+	}
+	wg.Wait()
+	sort.Slice(apr, func(i, j int) bool {
+		return apr[i]["app"] < apr[j]["app"]
+	})
+
+	jsonp, _ := json.Marshal(apr)
+	proc := string(jsonp)
+	fmt.Fprintln(w, proc)
+}
+
 func refresh(w http.ResponseWriter, r *http.Request) {
 	getpro()
 	getcron()
@@ -974,9 +1035,9 @@ func main() {
 	http.HandleFunc("/logmethod", logmethod)
 	http.HandleFunc("/setversion", setversion)
 	http.HandleFunc("/getversion", getversion)
-	http.HandleFunc("/setlog", setlog)
+	//http.HandleFunc("/setlog", setlog)
 	http.HandleFunc("/restart", restart)
-	http.HandleFunc("/setalart", setalart)
+	//http.HandleFunc("/setalart", setalart)
 	http.HandleFunc("/status", getstatus)
 	http.HandleFunc("/croninfo", croninfo)
 	http.HandleFunc("/seecron", allcroninfo)
@@ -989,6 +1050,7 @@ func main() {
 	http.HandleFunc("/getres", GetRes)
 	http.HandleFunc("/getsys", GetSys)
 	http.HandleFunc("/getproc", GetProc)
+	http.HandleFunc("/allproc", AllProc)
 	http.HandleFunc("/refresh", refresh)
 	err := http.ListenAndServe(*address+":"+*port, nil)
 	log.Println(err)
