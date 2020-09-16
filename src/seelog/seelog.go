@@ -53,7 +53,10 @@ func FileDownload(w http.ResponseWriter, r *http.Request) {
 func FileShow(w http.ResponseWriter, r *http.Request) {
 	var cu = []int{}
 	filename := r.FormValue("file")
-	lines, _ := strconv.Atoi(r.FormValue("lines"))
+	lines, err := strconv.Atoi(r.FormValue("lines"))
+	if err != nil {
+		lines = 200
+	}
 	dir := pwd()
 	file, err := os.Open(dir + "/logs/" + filename + ".log")
 	if err != nil {
