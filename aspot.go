@@ -1,17 +1,18 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"flag"
-	"fmt"
 	"aspot/src/config"
 	"aspot/src/lapi"
 	"aspot/src/proc"
 	"aspot/src/resource"
 	"aspot/src/seelog"
 	"aspot/src/ulog"
+	"aspot/src/upload"
 	"aspot/src/wapi"
+	"bufio"
+	"encoding/json"
+	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -77,14 +78,14 @@ func guard(path string) []string {
 
 func init() {
 	dir := pwd()
-	file := dir + "/logs/guard.log"
+	file := dir + "/logs/aspot.log"
 	pathcheck()
 	logFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
 	if err != nil {
 		panic(err)
 	}
 	log.SetOutput(logFile) // 将文件设置为log输出的文件
-	log.SetPrefix("[Guard] ")
+	log.SetPrefix("[Aspot] ")
 	//log.SetFlags(log.LstdFlags | log.Lshortfile | log.LUTC)
 	return
 }
@@ -384,9 +385,19 @@ func killpid(file string) {
 	}
 	err := syscall.Kill(-pid, syscall.SIGINT)
 	if err != nil {
+		proc.S.ListLock.Unlock()
 		log.Println("kill process of "+file+" is failed, err:", err)
+		return
 	}
+
+	tt := 0 //新增关闭超时,计数器tt相当于时长，设置10秒超时
 	for {
+		tt = tt + 1
+		if tt > 10 {
+			log.Println("kill process of " + file + " is failed, err: stop timeout!")
+			proc.S.ListLock.Unlock()
+			return
+		}
 		time.Sleep(time.Second * 1)
 		pidstr := strconv.Itoa(pid)
 		_, err := os.Stat("/proc/" + pidstr)
@@ -549,7 +560,7 @@ func launchprocess(w http.ResponseWriter, r *http.Request) {
 
 func pathcheck() {
 	dir := pwd()
-	for _, i := range []string{dir + "/bin/daemon", dir + "/bin/alart", dir + "/bin/autolaunch", dir + "/logs", dir + "/bin/services", dir + "/bin/cron", dir + "/bin/tool"} {
+	for _, i := range []string{dir + "/bin/daemon", dir + "/bin/alart", dir + "/bin/autolaunch", dir + "/logs", dir + "/bin/services", dir + "/bin/cron", dir + "/bin/tool", dir + "/env", dir + "/conf"} {
 		exists, _ := PathExists(i)
 		if exists == false {
 			os.MkdirAll(i, os.ModePerm)
@@ -1027,6 +1038,7 @@ func main() {
 	process()
 	time.Sleep(time.Second * 1)
 	go Check()
+	http.HandleFunc("/upservice", upload.UpService)
 	http.HandleFunc("/down", downprocess)
 	http.HandleFunc("/alldown", allshutdown)
 	http.HandleFunc("/info", getinfo)
